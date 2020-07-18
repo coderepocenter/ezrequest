@@ -15,7 +15,7 @@ class BatchMode(Enum):
 
 class ezrequest:
     def __init__(self, url: str, path: str, fixed_params: Dict[str, Any] = None, **kwargs) -> NoReturn:
-        print(f'[{os.getpid()}] initializing ezrequest ...')
+        # print(f'[{os.getpid()}] initializing ezrequest ...')
         if fixed_params is None:
             fixed_params = {}
         self._url = url
@@ -74,7 +74,7 @@ class ezrequest:
             param_queue.put(param)
 
         n_processes = int(processes_pool._processes)
-        print(f'[{os.getpid()}]: starting {n_processes} processes.')
+        # print(f'[{os.getpid()}]: starting {n_processes} processes.')
         process_response = [None] * n_processes
         for idx in range(n_processes):
             process_response[idx] = processes_pool.apply_async(
@@ -94,7 +94,7 @@ class ezrequest:
                           fixed_params: Dict[str, Any],
                           kwargs: Dict[Any, Any],
                           param_queue: Queue) -> List[requests.models.Response]:
-        print(f'[{os.getpid()}] starting task ...')
+        # print(f'[{os.getpid()}] starting task ...')
         er = ezrequest(
             url=url,
             path=path,
@@ -105,12 +105,12 @@ class ezrequest:
         try:
             while param_queue.qsize() > 0:  # still this could cause trouble; Hence, needs to be wrapped in try/catch
                 param = param_queue.get(False)
-                print(f'[{os.getpid()}]: param: {str(param)}')
+                # print(f'[{os.getpid()}]: param: {str(param)}')
                 response.append(er.get(param))
         except Empty:
             pass
 
-        print(f'[{os.getpid()}] ending task ...')
+        # print(f'[{os.getpid()}] ending task ...')
 
         return response
 
