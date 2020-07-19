@@ -1,0 +1,19 @@
+package:
+  name: ezrequest
+  version: '2020.199.1418'
+
+source:
+  git_url: https://github.com/coderepocenter/ezrequest
+  git_rev: 2020.199.1411
+
+build:
+  noarch: python
+  number: 0
+
+requirements:
+  build:
+    - git
+  run:
+    - python
+about:
+  summary: A wrapper around requests making certain conditions easier.
