@@ -104,6 +104,81 @@ class ezrequest:
         'https://httpbin.org/get?fixP=42&p1=3&p2=4'
 
     Example:
+        **Batch Get Calls**
+
+        Let's say you want to try two different parameters: (1) `{'p1': 1, 'p2': 3}` and (2) `{'p1': 2, 'p2': 4}`. One
+        option is to do two different get call, one for each parameter. The other option is to use the `batch_get()` as
+        follows:
+
+        >>> from ezrequest import ezrequest
+        >>> er = ezrequest(url='https://httpbin.org', path='/get')
+        >>> param_list = [{'p1': 1, 'p2': 3},  {'p1': 2, 'p2': 4}]
+        >>> response_list = er.batch_get(param_list)
+        >>> for response in response_list:
+        ...     print(response.url)
+        ...
+        https://httpbin.org/get?p1=1&p2=3
+        https://httpbin.org/get?p1=2&p2=4
+
+    Example:
+        **Batch Get Calls in parallel**
+
+        As previous example, you have multiple parameters, let's say just two in this case. And you want to call them
+        all but this time using parallel. You can use the `batch_get()` in parallel by setting the `use_parallel` to
+        `True` as follows:
+
+        >>> from ezrequest import ezrequest
+        >>> er = ezrequest(url='https://httpbin.org', path='/get')
+        >>> param_list = [{'p1': 1, 'p2': 3},  {'p1': 2, 'p2': 4}]
+        >>> response_list = er.batch_get(param_list, use_parallel=True)
+        >>> for response in response_list:
+        ...     print(response.url)
+        ...
+        https://httpbin.org/get?p1=1&p2=3
+        https://httpbin.org/get?p1=2&p2=4
+
+        **NOTE:** for small number of parameters as in this example, the parallel version will take even longer. The
+        prallel version needs to spin-up new python processes, which would take some time. It only make sense once to
+        use it if you have a lot of different values listed in the param_list.
+
+        When setting `use_parallel` to `True`, by default, new processes are spawned and the pramaters are queued to be
+        processed by these processes. The default number of processes depends on the value that `os.cpu_count()`
+        returns. However, you can also manually define this number:
+
+        >>> from ezrequest import ezrequest
+        >>> er = ezrequest(url='https://httpbin.org', path='/get')
+        >>> param_list = [{'p1': 1, 'p2': 3},  {'p1': 2, 'p2': 4}]
+        >>> response_list = er.batch_get(param_list, use_parallel=True, pool=2)
+        >>> for response in response_list:
+        ...     print(response.url)
+        ...
+        https://httpbin.org/get?p1=1&p2=3
+        https://httpbin.org/get?p1=2&p2=4
+
+        You can also reuse the previously created process pool, to avoid the creation of new processed.
+
+        >>> from multiprocessing import Pool
+        >>> from ezrequest import BatchMode, ezrequest, prep_param_list
+        >>> pool = Pool(processes=3)
+        >>> # doing some other work with the pool
+        ... # Now reusing the same pool
+        ... p1=[1, 2, 3]
+        >>> p2=[4, 5, 6]
+        >>> p3=[7, 8, 9]
+        >>> # using prep_param_list to quickly create a parameter list
+        ... # refer to its documentation for more information
+        ... param_list = prep_param_list(BatchMode.combine, {'p1': p1, 'p2': p2, 'p3': p3})
+        >>> len(param_list)
+        27
+        >>> er = ezrequest(url='https://httpbin.org', path='/get')
+        >>> response_list = er.batch_get(
+        ...     param_list=param_list,
+        ...     use_parallel=True,
+        ...     pool=pool)
+        >>> len(response_list)
+        27
+
+    Example:
         **Batch Get Calls by scanning parameters**
 
         Let's say you want to perform two get calls: (1) for `{'p1': 1, 'p2': 3}` and (2) for `{'p1': 2, 'p2': 4}`.
@@ -159,7 +234,7 @@ class ezrequest:
         You can have more than two parameters and more than two values for each parameter. For example:
 
         >>> from ezrequest import ezrequest, BatchMode
-        >>> er = ezrequest(url='https://httpbin.org', path='/get'
+        >>> er = ezrequest(url='https://httpbin.org', path='/get')
         >>> response_list = er.batch_get_s(
         ...     batch_mode=BatchMode.combine,
         ...     p1=[1, 2],
@@ -169,7 +244,7 @@ class ezrequest:
         >>> len(response_list)
         24
 
-        There are 24 responses retrieved, because you had 2 values for `p1`, 3 values for 'p2`, and 4 values for `p3`,
+        There are 24 responses retrieved, because you had 2 values for `p1`, 3 values for `p2`, and 4 values for `p3`,
         hence 2 * 3 * 4 = 24.
 
     Example:
@@ -184,7 +259,7 @@ class ezrequest:
         following:
 
         >>> from ezrequest import ezrequest, BatchMode
-        >>> er = ezrequest(url='https://httpbin.org', path='/get'
+        >>> er = ezrequest(url='https://httpbin.org', path='/get')
         >>> response_list = er.batch_get_p(
         ...     pool=3,
         ...     batch_mode=BatchMode.combine,
@@ -204,7 +279,8 @@ class ezrequest:
         >>> pool = Pool(processes=3)
         >>> # doing some other work with the pool
         ... # Now reusing the same pool
-        ... response_list = er.batch_get_p(
+        ... er = ezrequest(url='https://httpbin.org', path='/get')
+        >>> response_list = er.batch_get_p(
         ...     pool=pool,
         ...     batch_mode=BatchMode.combine,
         ...     p1=[1, 2, 3],
@@ -331,6 +407,54 @@ class ezrequest:
             params=self._process_parameter(variable_params)
         )
 
+    def batch_get(self,
+                  param_list: Iterable[Dict[str, Any]],
+                  use_parallel: bool = False,
+                  pool: Union[int, Pool] = os.cpu_count()):
+        """
+        performs a REST GET call for each parameter that is provided in the parameter list. This is good if you have to
+        make multiple calls. You could also perform the calls in parallel.
+        :param param_list: An Iterable containing multiple parameters that needs to be evaluated for REST Get call.
+
+        :type param_list: Iterable[Dict[str, Any]]
+
+        :param use_parallel: Determines if to make the REST calls in parallel or sequentially. Default is False.
+
+        :type use_parallel: bool
+
+        :parma pool: either an integer specifying the number of processes to be created, or an already created pool
+                     of processes. Default is number of cpu counts as returned by `os.cpu_count()`.
+
+        :type pool: Union[int, Pool]
+
+        :return: a list of requests responses
+
+        :rtype: List[requests.models.Response]
+        """
+
+        response = []
+        if use_parallel:
+            processes_pool = Pool(processes=pool) if isinstance(pool, int) else pool
+            param_queue = Manager().Queue()
+            for param in param_list:
+                param_queue.put(param)
+
+            n_processes = int(processes_pool._processes)
+            # print(f'[{os.getpid()}]: starting {n_processes} processes.')
+            process_response = [None] * n_processes
+            for idx in range(n_processes):
+                process_response[idx] = processes_pool.apply_async(
+                    ezrequest._batch_get_p_task,
+                    (self.url, self.path, self.fixed_params, self._kwargs, param_queue)
+                )
+
+            for idx in range(n_processes):
+                response.extend(process_response[idx].get())
+        else:
+            response.extend([self.get(param) for param in param_list])
+
+        return response
+
     def batch_get_s(self,
                     batch_mode: Union[BatchMode, str] = BatchMode.scan,
                     **parameters_dict_list) -> List[requests.models.Response]:
@@ -349,8 +473,8 @@ class ezrequest:
 
         :rtype: List[requests.models.Response]
         """
-        param_list = self.prep_param_list(batch_mode, parameters_dict_list)
-        return [self.get(param) for param in param_list]
+        param_list = prep_param_list(batch_mode, parameters_dict_list)
+        return self.batch_get(param_list=param_list)
 
     def batch_get_p(self,
                     pool: Union[int, Pool] = os.cpu_count(),
@@ -376,25 +500,14 @@ class ezrequest:
 
         :rtype: List[requests.models.Response]
         """
-        processes_pool = Pool(processes=pool) if isinstance(pool, int) else pool
-        param_queue = Manager().Queue()
-        for param in self.prep_param_list(batch_mode, parameters_dict_list):
-            param_queue.put(param)
 
-        n_processes = int(processes_pool._processes)
-        # print(f'[{os.getpid()}]: starting {n_processes} processes.')
-        process_response = [None] * n_processes
-        for idx in range(n_processes):
-            process_response[idx] = processes_pool.apply_async(
-                ezrequest._batch_get_p_task,
-                (self.url, self.path, self.fixed_params, self._kwargs, param_queue)
-            )
+        param_list = prep_param_list(batch_mode, parameters_dict_list)
 
-        response = []
-        for idx in range(n_processes):
-            response.extend(process_response[idx].get())
-
-        return response
+        return self.batch_get(
+            param_list=param_list,
+            use_parallel=True,
+            pool=pool
+        )
 
     @staticmethod
     def _batch_get_p_task(url: str,
@@ -436,26 +549,123 @@ class ezrequest:
     def __del__(self) -> NoReturn:
         self.session.close()
 
-    @staticmethod
-    def prep_param_list(
-            batch_mode: Union[BatchMode, str],
-            parameters_dict_list: Dict[str, Iterable[Any]]) -> List[Dict[str, Any]]:
-        batch_mode_enum = BatchMode(batch_mode)
 
-        if batch_mode_enum == BatchMode.scan:
-            # Checking All the parameters have the same
-            return [
-                dict(zip(parameters_dict_list.keys(), zipped_value))
-                for zipped_value in zip(*parameters_dict_list.values())
-            ]
+def prep_param_list(
+        batch_mode: Union[BatchMode, str],
+        parameters_dict_list: Dict[str, Iterable[Any]]) -> List[Dict[str, Any]]:
+    """
+    Creates a list of parameters out of the multiple values that are provided for each parameter.
 
-        if batch_mode_enum == BatchMode.combine:
-            return [
-                dict(zip(parameters_dict_list.keys(), zipped_value))
-                for zipped_value in zip(
-                    *[
-                        e.flatten()
-                        for e in np.meshgrid(*parameters_dict_list.values())
-                    ]
-                )
-            ]
+    :param batch_mode: defines how to create a parameter list. Poosible options or `BatchMode.scan` and
+                       `BatchMode.combine`
+
+    :type batch_mode: BatchMode
+
+    :param parameters_dict_list: a dictionary that the keys are the parameter name and the values are iterable
+                                 providing multiple values for each parameter.
+
+    :type parameters_dict_list: Dict[str, Iterable[Any]]
+
+    :return: A list of parameters created out of the provided parameters.
+
+    :rtype: List[Dict[str, Any]]
+
+    Example:
+        **Creating parameters using `BatchMode.scan`**
+
+        Let's say you have parameter `a` which has two values: `[1, 2]`, and parameter `b` which also has two values:
+        `[3, 4]`. You are interseted to create a list of parameters which is constructed from each values of parameter
+        `a` with the corresponding one in parameter `b`:
+
+        >>> from ezrequest import BatchMode, prep_param_list
+        >>> plist = prep_param_list(BatchMode.scan, {'a': [1, 2], 'b': [3, 4]})
+        >>> print(plist)
+        [{'a': 1, 'b': 3}, {'a': 2, 'b': 4}]
+
+    Example:
+        **Creating parameters by combining the values (trying each combination)**
+
+        This is the same as before, except that you want to try all the combinations.
+
+        >>> from ezrequest import BatchMode, prep_param_list
+        >>> plist = prep_param_list(BatchMode.combine, {'a': [1, 2], 'b': [3, 4]})
+        >>> for parameter in plist:
+        ...     print(parameter)
+        ...
+        {'a': 1, 'b': 3}
+        {'a': 2, 'b': 3}
+        {'a': 1, 'b': 4}
+        {'a': 2, 'b': 4}
+
+    Example:
+        **More than two parameters**
+
+        If you have more than two variables, just list them.
+
+        >>> from ezrequest import BatchMode, prep_param_list
+        >>> plist = prep_param_list(BatchMode.combine, {'a': [1, 2], 'b': [3, 4, 5], 'c': [6, 7, 8, 9]})
+        >>> for parameter in plist:
+        ...     print(parameter)
+        ...
+        {'a': 1, 'b': 3, 'c': 6}
+        {'a': 1, 'b': 3, 'c': 7}
+        {'a': 1, 'b': 3, 'c': 8}
+        {'a': 1, 'b': 3, 'c': 9}
+        {'a': 2, 'b': 3, 'c': 6}
+        {'a': 2, 'b': 3, 'c': 7}
+        {'a': 2, 'b': 3, 'c': 8}
+        {'a': 2, 'b': 3, 'c': 9}
+        {'a': 1, 'b': 4, 'c': 6}
+        {'a': 1, 'b': 4, 'c': 7}
+        {'a': 1, 'b': 4, 'c': 8}
+        {'a': 1, 'b': 4, 'c': 9}
+        {'a': 2, 'b': 4, 'c': 6}
+        {'a': 2, 'b': 4, 'c': 7}
+        {'a': 2, 'b': 4, 'c': 8}
+        {'a': 2, 'b': 4, 'c': 9}
+        {'a': 1, 'b': 5, 'c': 6}
+        {'a': 1, 'b': 5, 'c': 7}
+        {'a': 1, 'b': 5, 'c': 8}
+        {'a': 1, 'b': 5, 'c': 9}
+        {'a': 2, 'b': 5, 'c': 6}
+        {'a': 2, 'b': 5, 'c': 7}
+        {'a': 2, 'b': 5, 'c': 8}
+        {'a': 2, 'b': 5, 'c': 9}
+
+    Example:
+        **Using `BatchMode.scan` with different number of values for each parameter**
+
+        Note that if you have different number of values (or options) for each parameter, and decide to use the
+        `BatchMode.scan` instead of `BatchMode.combine` the shortest iterable will decide how many parameter is created.
+
+        >>> from ezrequest import BatchMode, prep_param_list
+        >>> plist = prep_param_list(BatchMode.scan, {'a': [1, 2], 'b': [3, 4, 5], 'c': [6, 7, 8, 9]})
+        >>> for parameter in plist:
+        ...     print(parameter)
+        ...
+        {'a': 1, 'b': 3, 'c': 6}
+        {'a': 2, 'b': 4, 'c': 7}
+
+        As you can see only the first two values for each list is used. Value 5 for `b` is never used, and valu 8 and 9
+        for `c` are also never used.
+    """
+
+    batch_mode_enum = BatchMode(batch_mode)
+
+    if batch_mode_enum == BatchMode.scan:
+        # Checking All the parameters have the same
+        return [
+            dict(zip(parameters_dict_list.keys(), zipped_value))
+            for zipped_value in zip(*parameters_dict_list.values())
+        ]
+
+    if batch_mode_enum == BatchMode.combine:
+        return [
+            dict(zip(parameters_dict_list.keys(), zipped_value))
+            for zipped_value in zip(
+                *[
+                    e.flatten()
+                    for e in np.meshgrid(*parameters_dict_list.values())
+                ]
+            )
+        ]

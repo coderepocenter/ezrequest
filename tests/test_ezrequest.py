@@ -1,7 +1,7 @@
 from multiprocessing import Pool
 from unittest import TestCase
 
-from ezrequest import ezrequest, BatchMode
+from ezrequest import ezrequest, BatchMode, prep_param_list
 
 
 class Testezrequest(TestCase):
@@ -124,13 +124,13 @@ class Testezrequest(TestCase):
             )
 
     def test_prep_param_list_01(self):
-        plist = ezrequest.prep_param_list(BatchMode.scan, {'a': [1, 2], 'b': [3, 4]})
+        plist = prep_param_list(BatchMode.scan, {'a': [1, 2], 'b': [3, 4]})
         self.assertEqual(2, len(plist))
         self.assertTrue({'a': 1, 'b': 3}, plist[0])
         self.assertTrue({'a': 2, 'b': 4}, plist[1])
 
     def test_prep_param_list_02(self):
-        plist = ezrequest.prep_param_list(BatchMode.combine, {'a': [1, 2], 'b': [3, 4]})
+        plist = prep_param_list(BatchMode.combine, {'a': [1, 2], 'b': [3, 4]})
         self.assertEqual(4, len(plist))
         self.assertDictEqual({'a': 1, 'b': 3}, plist[0])
         self.assertDictEqual({'a': 2, 'b': 3}, plist[1])
@@ -138,13 +138,13 @@ class Testezrequest(TestCase):
         self.assertDictEqual({'a': 2, 'b': 4}, plist[3])
 
     def test_prep_param_list_03(self):
-        plist = ezrequest.prep_param_list(BatchMode.scan, {'a': [1, 2], 'b': [3, 4], 'c': [5, 6]})
+        plist = prep_param_list(BatchMode.scan, {'a': [1, 2], 'b': [3, 4], 'c': [5, 6]})
         self.assertEqual(2, len(plist))
         self.assertDictEqual({'a': 1, 'b': 3, 'c': 5}, plist[0])
         self.assertDictEqual({'a': 2, 'b': 4, 'c': 6}, plist[1])
 
     def test_prep_param_list_04(self):
-        plist = ezrequest.prep_param_list(BatchMode.combine, {'a': [1, 2], 'b': [3, 4], 'c': [5, 6]})
+        plist = prep_param_list(BatchMode.combine, {'a': [1, 2], 'b': [3, 4], 'c': [5, 6]})
         self.assertEqual(8, len(plist))
         self.assertDictEqual({'a': 1, 'b': 3, 'c': 5}, plist[0])
         self.assertDictEqual({'a': 1, 'b': 3, 'c': 6}, plist[1])
