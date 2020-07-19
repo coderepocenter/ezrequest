@@ -1,0 +1,7 @@
+name: ezrequest
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - requests
+  - numpy
