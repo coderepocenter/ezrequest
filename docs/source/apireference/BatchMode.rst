@@ -1,0 +1,4 @@
+BatchMode
+---------
+
+.. autoclass:: ezrequest.BatchMode
